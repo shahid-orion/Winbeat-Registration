@@ -5,6 +5,7 @@ import validateABN from '@/lib/utils';
 import api from '@/lib/api';
 import geminiAI from '@/lib/geminiAI';
 import pageActions from '@/lib/pageActions';
+import workflowEngine from '@/lib/workflowEngine';
 import { ChatButton, ChatWindow } from './chatComponents';
 
 export default function AIAssistant() {
@@ -520,13 +521,89 @@ export default function AIAssistant() {
 	const processAIRequest = async (query) => {
 		const lowerQuery = query.toLowerCase();
 
-		// First, check for page-specific actions
+		// PRIORITY 1: Check for multi-step workflows
+		const workflowIntent = workflowEngine.identifyWorkflow(
+			query,
+			pageActions.getCurrentPage()
+		);
+
+		if (workflowIntent && workflowIntent.confidence > 0.7) {
+			// Extract parameters for the workflow
+			const parameters = workflowEngine.extractParameters(query);
+			parameters.skipNavigation = workflowIntent.skipNavigation || false;
+			parameters.delayBetweenSteps = 800;
+
+			// Add progress message
+			const workflowName =
+				workflowEngine.workflows[workflowIntent.workflowId].name;
+			setMessages((prev) => [
+				...prev,
+				{
+					id: Date.now() + 0.5,
+					type: 'assistant',
+					content: `🔄 Starting workflow: **${workflowName}**\n\nI'll execute these steps for you:`,
+					timestamp: new Date(),
+					source: 'workflow-start',
+				},
+			]);
+
+			// Execute workflow with progress callbacks
+			const workflowResult = await workflowEngine.executeWorkflow(
+				workflowIntent.workflowId,
+				parameters,
+				navigate,
+				{
+					onStepStart: (stepNum, totalSteps, description) => {
+						setMessages((prev) => [
+							...prev,
+							{
+								id: Date.now() + Math.random(),
+								type: 'assistant',
+								content: `**Step ${stepNum}/${totalSteps}:** ${description}...`,
+								timestamp: new Date(),
+								source: 'workflow-progress',
+							},
+						]);
+					},
+				}
+			);
+
+			// Format result message
+			if (workflowResult.success) {
+				const stepSummary = workflowResult.steps
+					.map((s) => `✅ ${s.action}: ${s.message}`)
+					.join('\n');
+
+				return {
+					message: `✨ **Workflow completed successfully!**\n\n${stepSummary}\n\n📊 Completed ${workflowResult.completedSteps}/${workflowResult.totalSteps} steps`,
+					source: 'workflow-complete',
+					workflowResult,
+				};
+			} else {
+				const stepSummary = workflowResult.steps
+					.map((s) => {
+						const icon = s.status === 'completed' ? '✅' : '❌';
+						return `${icon} ${s.action}: ${s.message}`;
+					})
+					.join('\n');
+
+				return {
+					message: `⚠️ **Workflow stopped at step ${
+						workflowResult.completedSteps + 1
+					}**\n\n${stepSummary}\n\n**Error:** ${workflowResult.errorMessage}`,
+					source: 'workflow-error',
+					workflowResult,
+				};
+			}
+		}
+
+		// PRIORITY 2: Check for single page-specific actions
 		const pageActionResult = await handlePageAction(query);
 		if (pageActionResult) {
 			return pageActionResult;
 		}
 
-		// Get page context for Gemini
+		// PRIORITY 3: Get page context for Gemini
 		const pageContext = pageActions.getPageContext();
 
 		// Check if Gemini should handle this query

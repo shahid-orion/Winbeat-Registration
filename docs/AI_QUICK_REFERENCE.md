@@ -2,7 +2,81 @@
 
 ## 🎯 What's New
 
-Your WinBeat AI Assistant can now **interact directly with pages** and trigger actions! No more manual clicking - just ask the AI to do it for you.
+Your WinBeat AI Assistant can now:
+
+- **Execute multi-step workflows** - Chain multiple actions together automatically
+- **Navigate across pages** - Go to any page and perform actions
+- **Interact directly with pages** - Search, edit, create, download - all via natural language
+- **Provide real-time progress updates** - See each step as it executes
+
+## 🔥 Multi-Step Workflows
+
+### Complex Command Example
+
+The AI can now execute complex, multi-step commands like:
+
+```
+User: "go to manage registration page and search for ABC Strata and download pdf"
+
+AI: 🔄 Starting workflow: Search, Edit, and Download PDF
+
+    Step 1/4: Navigate to target page...
+    ✅ navigate: Navigated to manage-registrations
+
+    Step 2/4: Search for the record...
+    ✅ search: Searched for company "ABC Strata". Found 1 registration(s)
+
+    Step 3/4: Load record for editing...
+    ✅ edit: Loaded registration for editing: ABC Strata
+
+    Step 4/4: Download PDF...
+    ✅ downloadPdf: PDF download initiated for ABC Strata
+
+    ✨ Workflow completed successfully!
+    📊 Completed 4/4 steps
+```
+
+### Available Workflows
+
+#### 1. Search → Edit → Download
+
+```
+"go to manage registration page and search for [company] and download pdf"
+"find ABC Strata and download the PDF"
+"navigate to registrations, search XYZ Corp, and get the PDF"
+```
+
+#### 2. Search → Edit
+
+```
+"go to clients page and search for ABC Company and edit it"
+"find user john.doe and edit"
+"navigate to users and edit admin.user"
+```
+
+#### 3. Navigate → Search
+
+```
+"go to manage registrations and search for ABC"
+"open clients page and find XYZ"
+"navigate to users and search for john"
+```
+
+#### 4. Navigate → Create
+
+```
+"go to clients page and create a new client"
+"open users and add a new user"
+"navigate to manage registrations and create new"
+```
+
+### Workflow Benefits
+
+- **Automated**: No manual clicking required
+- **Reliable**: Each step is validated before proceeding
+- **Transparent**: See exactly what's happening in real-time
+- **Error Handling**: Stops and reports if any step fails
+- **Time-Saving**: Execute complex tasks in seconds
 
 ## ✨ Manage Registration Page
 
