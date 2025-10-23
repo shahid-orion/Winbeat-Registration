@@ -241,6 +241,279 @@ export default function AIAssistant() {
 			}
 		}
 
+		// CLIENTS PAGE ACTIONS
+		if (pageContext.page === 'clients') {
+			// Search action
+			if (lowerQuery.includes('search') || lowerQuery.includes('find')) {
+				// Extract search term
+				const searchMatch =
+					query.match(/search\s+(?:for\s+)?(.+)/i) ||
+					query.match(/find\s+(?:client\s+)?(.+)/i) ||
+					query.match(/look\s+for\s+(.+)/i);
+
+				let searchTerm = '';
+				if (searchMatch) {
+					searchTerm = searchMatch[1].trim();
+				}
+
+				// Handle "all clients"
+				if (
+					lowerQuery.includes('all client') ||
+					lowerQuery === 'search' ||
+					lowerQuery === 'find'
+				) {
+					searchTerm = '';
+				}
+
+				try {
+					const result = await pageActions.executeAction('search', {
+						term: searchTerm,
+					});
+
+					if (result.success) {
+						return {
+							message: searchTerm
+								? `I've searched for "${searchTerm}". ${result.message}`
+								: `I've loaded all clients. ${result.message}`,
+							source: 'page-action',
+							actionResult: result,
+						};
+					} else {
+						return {
+							message: `Search failed: ${result.message}`,
+							source: 'page-action-error',
+							actionResult: result,
+						};
+					}
+				} catch (error) {
+					return {
+						message: `Error executing search: ${error.message}`,
+						source: 'error',
+					};
+				}
+			}
+
+			// Edit action
+			if (lowerQuery.includes('edit')) {
+				const editMatch = query.match(/edit\s+(.+)/i);
+				if (editMatch) {
+					const clientIdentifier = editMatch[1].trim();
+
+					try {
+						const result = await pageActions.executeAction('edit', {
+							clientName: clientIdentifier,
+							clientCode: clientIdentifier,
+						});
+
+						if (result.success) {
+							return {
+								message: `I've loaded the client for editing. ${result.message}`,
+								source: 'page-action',
+								actionResult: result,
+							};
+						} else {
+							return {
+								message: `Unable to edit: ${result.message}`,
+								source: 'page-action-error',
+								actionResult: result,
+							};
+						}
+					} catch (error) {
+						return {
+							message: `Error loading client: ${error.message}`,
+							source: 'error',
+						};
+					}
+				}
+			}
+
+			// Create action
+			if (
+				lowerQuery.includes('create') ||
+				lowerQuery.includes('add') ||
+				lowerQuery.includes('new client')
+			) {
+				try {
+					const result = await pageActions.executeAction('create');
+
+					if (result.success) {
+						return {
+							message: `${result.message}. Please fill in the required fields.`,
+							source: 'page-action',
+							actionResult: result,
+						};
+					} else {
+						return {
+							message: `Unable to create: ${result.message}`,
+							source: 'page-action-error',
+							actionResult: result,
+						};
+					}
+				} catch (error) {
+					return {
+						message: `Error opening form: ${error.message}`,
+						source: 'error',
+					};
+				}
+			}
+		}
+
+		// USERS PAGE ACTIONS
+		if (pageContext.page === 'users') {
+			// Search action
+			if (lowerQuery.includes('search') || lowerQuery.includes('find')) {
+				const searchMatch =
+					query.match(/search\s+(?:for\s+)?(?:user\s+)?(.+)/i) ||
+					query.match(/find\s+(?:user\s+)?(.+)/i);
+
+				let userCode = '';
+				if (searchMatch) {
+					userCode = searchMatch[1].trim();
+				}
+
+				// Handle "all users"
+				if (
+					lowerQuery.includes('all user') ||
+					lowerQuery === 'search' ||
+					lowerQuery === 'find'
+				) {
+					userCode = '';
+				}
+
+				try {
+					const result = await pageActions.executeAction('search', {
+						userCode,
+					});
+
+					if (result.success) {
+						return {
+							message: userCode
+								? `I've searched for user "${userCode}". ${result.message}`
+								: `I've loaded all users. ${result.message}`,
+							source: 'page-action',
+							actionResult: result,
+						};
+					} else {
+						return {
+							message: `Search failed: ${result.message}`,
+							source: 'page-action-error',
+							actionResult: result,
+						};
+					}
+				} catch (error) {
+					return {
+						message: `Error executing search: ${error.message}`,
+						source: 'error',
+					};
+				}
+			}
+
+			// Filter by security level
+			if (
+				lowerQuery.includes('admin') ||
+				lowerQuery.includes('editor') ||
+				lowerQuery.includes('viewer') ||
+				lowerQuery.includes('security level')
+			) {
+				let securityLevel = -1;
+
+				if (lowerQuery.includes('admin')) securityLevel = 2;
+				else if (lowerQuery.includes('editor')) securityLevel = 1;
+				else if (lowerQuery.includes('viewer')) securityLevel = 0;
+
+				if (securityLevel >= 0) {
+					try {
+						const result = await pageActions.executeAction(
+							'listBySecurityLevel',
+							{ securityLevel }
+						);
+
+						if (result.success) {
+							return {
+								message: `${result.message}`,
+								source: 'page-action',
+								actionResult: result,
+							};
+						} else {
+							return {
+								message: `Filter failed: ${result.message}`,
+								source: 'page-action-error',
+								actionResult: result,
+							};
+						}
+					} catch (error) {
+						return {
+							message: `Error filtering users: ${error.message}`,
+							source: 'error',
+						};
+					}
+				}
+			}
+
+			// Edit action
+			if (lowerQuery.includes('edit')) {
+				const editMatch = query.match(/edit\s+(?:user\s+)?(.+)/i);
+				if (editMatch) {
+					const userCode = editMatch[1].trim();
+
+					try {
+						const result = await pageActions.executeAction('edit', {
+							userCode,
+						});
+
+						if (result.success) {
+							return {
+								message: `I've loaded the user for editing. ${result.message}`,
+								source: 'page-action',
+								actionResult: result,
+							};
+						} else {
+							return {
+								message: `Unable to edit: ${result.message}`,
+								source: 'page-action-error',
+								actionResult: result,
+							};
+						}
+					} catch (error) {
+						return {
+							message: `Error loading user: ${error.message}`,
+							source: 'error',
+						};
+					}
+				}
+			}
+
+			// Create action
+			if (
+				lowerQuery.includes('create') ||
+				lowerQuery.includes('add') ||
+				lowerQuery.includes('new user')
+			) {
+				try {
+					const result = await pageActions.executeAction('create');
+
+					if (result.success) {
+						return {
+							message: `${result.message}. Please fill in the required fields.`,
+							source: 'page-action',
+							actionResult: result,
+						};
+					} else {
+						return {
+							message: `Unable to create: ${result.message}`,
+							source: 'page-action-error',
+							actionResult: result,
+						};
+					}
+				} catch (error) {
+					return {
+						message: `Error opening form: ${error.message}`,
+						source: 'error',
+					};
+				}
+			}
+		}
+
 		return null; // No page action matched
 	};
 
@@ -318,32 +591,32 @@ export default function AIAssistant() {
 			return {
 				message: `I'm your WinBeat AI Assistant! I can help you with:
 				
-🔍 **Data Analysis**
-• "Check which clients have invalid ABNs"
-• "Find registrations expiring soon"
-• "Show me users with admin access"
+                    🔍 **Data Analysis**
+                    • "Check which clients have invalid ABNs"
+                    • "Find registrations expiring soon"
+                    • "Show me users with admin access"
 
-📊 **Statistics & Reports**
-• "How many clients do we have?"
-• "Count active registrations"
-• "List all expired registrations"
+                    📊 **Statistics & Reports**
+                    • "How many clients do we have?"
+                    • "Count active registrations"
+                    • "List all expired registrations"
 
-🧭 **Smart Navigation**
-• "Go to manage clients"
-• "Open user management" (admin only)
-• "Take me to home page"
+                    🧭 **Smart Navigation**
+                    • "Go to manage clients"
+                    • "Open user management" (admin only)
+                    • "Take me to home page"
 
-🔎 **Intelligent Search**
-• "Search for ABC Strata registration"
-• "Find client with ABN 12345678901"
-• "Look up user john.doe"
+                    🔎 **Intelligent Search**
+                    • "Search for ABC Strata registration"
+                    • "Find client with ABN 12345678901"
+                    • "Look up user john.doe"
 
-💡 **Quick Actions**
-• "Show me clients in Sydney"
-• "Find registrations without LIN numbers"
-• "Check security levels of all users"
+                    💡 **Quick Actions**
+                    • "Show me clients in Sydney"
+                    • "Find registrations without LIN numbers"
+                    • "Check security levels of all users"
 
-Just ask me anything about your WinBeat data or where you'd like to go!`,
+                    Just ask me anything about your WinBeat data or where you'd like to go!`,
 				source: 'rule-based',
 			};
 		}

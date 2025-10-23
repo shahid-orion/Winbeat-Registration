@@ -7,6 +7,7 @@ import validateABN, {
 } from '../lib/utils';
 import { FaEdit, FaTrashAlt, FaUserPlus, FaSearch } from 'react-icons/fa';
 import DataTable from '@/components/DataTable';
+import pageActions from '@/lib/pageActions';
 
 function FormFields({ form, setForm }) {
 	const handleNumericInput = useCallback(
@@ -92,6 +93,115 @@ export default function Clients() {
 			}, 500);
 		}
 	}, [location.state]);
+
+	// Register page actions for AI Assistant
+	useEffect(() => {
+		const pageActionsConfig = {
+			search: async ({ term: searchTerm = '' }) => {
+				setTerm(searchTerm);
+
+				try {
+					const res = await http(
+						`/api/clients?term=${encodeURIComponent(searchTerm)}`
+					);
+					setItems(res.items || []);
+
+					return {
+						success: true,
+						message: `Found ${res.items?.length || 0} client(s)`,
+						resultCount: res.items?.length || 0,
+						results: res.items || [],
+					};
+				} catch (e) {
+					const errorMsg = e?.message || 'Failed to load clients';
+					setErrMsg(errorMsg);
+					setTimeout(() => setErrMsg(''), 4000);
+					return {
+						success: false,
+						message: errorMsg,
+					};
+				}
+			},
+
+			edit: async ({ clientId, clientName, clientCode }) => {
+				let targetClientId = clientId;
+
+				// If name or code provided, find clientId from results
+				if (!targetClientId && (clientName || clientCode)) {
+					const match = items.find(
+						(c) =>
+							(clientName &&
+								c.name?.toLowerCase() === clientName.toLowerCase()) ||
+							(clientCode && c.code?.toLowerCase() === clientCode.toLowerCase())
+					);
+
+					if (!match) {
+						return {
+							success: false,
+							message: `Could not find client "${clientName || clientCode}"`,
+						};
+					}
+
+					targetClientId = match.clientID;
+				}
+
+				if (!targetClientId) {
+					return {
+						success: false,
+						message: 'Please provide clientId, clientName, or clientCode',
+					};
+				}
+
+				try {
+					const c = await http(`/api/clients/${targetClientId}`);
+					setSelectedId(c.clientID);
+					setForm(c);
+					setTab('browse');
+					setOkMsg('');
+					setErrMsg('');
+
+					return {
+						success: true,
+						message: `Loaded client for editing: ${c.name || c.code}`,
+						clientId: c.clientID,
+						clientData: c,
+					};
+				} catch (e) {
+					const errorMsg = e?.message || 'Failed to load client';
+					setErrMsg(errorMsg);
+					setTimeout(() => setErrMsg(''), 4000);
+					return {
+						success: false,
+						message: errorMsg,
+					};
+				}
+			},
+
+			create: async () => {
+				setTab('form');
+				resetForm();
+				return {
+					success: true,
+					message: 'Opening form to create new client',
+				};
+			},
+		};
+
+		const pageData = {
+			searchTerm: term,
+			results: items,
+			resultCount: items.length,
+			hasResults: items.length > 0,
+			selectedClient: selectedId,
+			currentTab: tab,
+		};
+
+		pageActions.registerPage('clients', pageActionsConfig, pageData);
+
+		return () => {
+			pageActions.unregisterPage('clients');
+		};
+	}, [term, items, selectedId, tab]);
 
 	// Helper function to search with a specific term
 	async function loadWithTerm(searchTerm) {

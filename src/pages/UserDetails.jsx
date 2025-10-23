@@ -3,6 +3,7 @@ import { FaEdit, FaTrashAlt, FaUserPlus, FaSearch } from 'react-icons/fa';
 import { useAuth } from '@/auth/AuthContext';
 import api from '@/lib/api';
 import DataTable from '@/components/DataTable';
+import pageActions from '@/lib/pageActions';
 
 // FormFields component - defined outside to prevent re-creation on every render
 function FormFields({ form, setForm, selectedId }) {
@@ -227,6 +228,168 @@ export default function UserDetails() {
 
 	const [okMsg, setOkMsg] = useState('');
 	const [errMsg, setErrMsg] = useState('');
+
+	// Register page actions for AI Assistant
+	useEffect(() => {
+		const pageActionsConfig = {
+			search: async ({ userCode = '' }) => {
+				setSearchTerm(userCode);
+
+				try {
+					const res = await api.get('/users', {
+						params: { userCode: userCode || undefined },
+					});
+					setItems(res.data || []);
+					setTotal(res.data?.length || 0);
+
+					return {
+						success: true,
+						message: `Found ${res.data?.length || 0} user(s)`,
+						resultCount: res.data?.length || 0,
+						results: res.data || [],
+					};
+				} catch (e) {
+					const errorMsg = e?.message || 'Failed to load users';
+					setErrMsg(errorMsg);
+					setTimeout(() => setErrMsg(''), 4000);
+					return {
+						success: false,
+						message: errorMsg,
+					};
+				}
+			},
+
+			edit: async ({ userCode }) => {
+				if (!userCode) {
+					return {
+						success: false,
+						message: 'Please provide a userCode to edit',
+					};
+				}
+
+				// Check if user exists in current results
+				const userExists = items.find(
+					(u) => u.userCode?.toLowerCase() === userCode.toLowerCase()
+				);
+
+				if (!userExists && items.length > 0) {
+					return {
+						success: false,
+						message: `Could not find user "${userCode}" in current results. Try searching first.`,
+					};
+				}
+
+				try {
+					setIsLoadingUser(true);
+					setErrMsg('');
+					setOkMsg('');
+
+					// Use GetAll endpoint with userCode query parameter (same as pick function)
+					const res = await api.get('/users', { params: { userCode } });
+					const users = res.data;
+
+					// Since we're searching by exact userCode, should get one result
+					if (!users || users.length === 0) {
+						throw new Error('User not found');
+					}
+
+					const u = users[0];
+					setSelectedId(u.userID);
+					setForm({
+						userCode: u.userCode || '',
+						password: '', // Don't populate password for security
+						security: u.security ?? 1,
+						branchID: u.branchID || '',
+						country: u.country || '',
+						passwordNeverExpires: !!u.passwordNeverExpires,
+						canChangePassword: !!u.canChangePassword,
+						changePasswordNextLogon: !!u.changePasswordNextLogon,
+					});
+
+					setTab('browse'); // Keep in browse tab to show edit form
+					setIsLoadingUser(false);
+
+					return {
+						success: true,
+						message: `Loaded user for editing: ${userCode}`,
+						userCode: userCode,
+						userData: u,
+					};
+				} catch (e) {
+					const errorMsg =
+						e?.response?.data || e?.message || 'Failed to load user';
+					setErrMsg(errorMsg);
+					setIsLoadingUser(false);
+					setTimeout(() => setErrMsg(''), 4000);
+					return {
+						success: false,
+						message: errorMsg,
+					};
+				}
+			},
+
+			create: async () => {
+				setTab('form');
+				resetForm();
+				return {
+					success: true,
+					message: 'Opening form to create new user',
+				};
+			},
+
+			listBySecurityLevel: async ({ securityLevel }) => {
+				const level = parseInt(securityLevel);
+				if (![0, 1, 2].includes(level)) {
+					return {
+						success: false,
+						message:
+							'Security level must be 0 (Viewer), 1 (Editor), or 2 (Admin)',
+					};
+				}
+
+				try {
+					const res = await api.get('/users');
+					const filtered = (res.data || []).filter((u) => u.security === level);
+					setItems(filtered);
+					setTotal(filtered.length);
+
+					const levelName =
+						level === 0 ? 'Viewer' : level === 1 ? 'Editor' : 'Admin';
+
+					return {
+						success: true,
+						message: `Found ${filtered.length} ${levelName} user(s)`,
+						resultCount: filtered.length,
+						results: filtered,
+					};
+				} catch (e) {
+					const errorMsg = e?.message || 'Failed to filter users';
+					setErrMsg(errorMsg);
+					setTimeout(() => setErrMsg(''), 4000);
+					return {
+						success: false,
+						message: errorMsg,
+					};
+				}
+			},
+		};
+
+		const pageData = {
+			searchTerm: searchTerm,
+			results: items,
+			resultCount: items.length,
+			totalUsers: total,
+			hasResults: items.length > 0,
+			selectedUser: selectedId,
+			currentTab: tab,
+		};
+
+		pageActions.registerPage('users', pageActionsConfig, pageData);
+
+		return () => {
+			pageActions.unregisterPage('users');
+		};
+	}, [searchTerm, items, total, selectedId, tab]);
 
 	// Define columns for the DataTable
 	const tableColumns = useMemo(

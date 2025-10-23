@@ -12,9 +12,9 @@ export default function ChatButton({ onOpen }) {
 				<div className="relative z-10 flex items-center justify-center">
 					<FaStar className="text-white text-xl animate-spin-slow" />
 				</div>
-				<div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full border-2 border-white flex items-center justify-center shadow-lg">
+				{/* <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full border-2 border-white flex items-center justify-center shadow-lg">
 					<div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
-				</div>
+				</div> */}
 			</button>
 
 			{/* Floating tooltip */}

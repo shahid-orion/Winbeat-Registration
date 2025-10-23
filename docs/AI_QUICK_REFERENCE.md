@@ -164,27 +164,185 @@ Everything else is treated as company name:
 "search for XYZ Corporation" → Searches by company name
 ```
 
-## 🚀 Coming Soon
+## 👥 Clients Page
 
-More page-specific actions are being added:
+### Search Clients
 
-### Clients Page
+Search for clients by name, code, or any text:
 
-- Search and filter clients
-- View client details
-- Export client lists
+```
+User: "search for all clients"
+AI: ✅ I've loaded all clients. Found 35 client(s)
 
-### User Management
+User: "find ABC Corporation"
+AI: ✅ I've searched for "ABC Corporation". Found 1 client(s)
 
-- Create new users
-- Search and filter users
-- Update user permissions
+User: "search for sydney"
+AI: ✅ I've searched for "sydney". Found 8 client(s)
+```
 
-### Dashboard
+**How it works:**
 
-- Generate reports
-- View analytics
-- Export data
+- AI searches across client names, codes, and other fields
+- Shows results in the table
+- Provides feedback about number of results found
+
+### Edit Client
+
+After searching, ask AI to edit a specific client:
+
+```
+User: "search for ABC Corp"
+AI: ✅ Found 1 client(s)
+
+User: "Edit ABC Corp"
+AI: ✅ I've loaded the client for editing. Loaded client for editing: ABC Corp
+```
+
+**How it works:**
+
+- AI matches client name or code against search results
+- Loads the client record into the edit form
+- Ready for you to make changes
+
+### Create New Client
+
+Ask AI to open the form for creating a new client:
+
+```
+User: "create new client"
+AI: ✅ Opening form to create new client. Please fill in the required fields.
+
+User: "add a client"
+AI: ✅ Opening form to create new client. Please fill in the required fields.
+```
+
+### Clients Page Examples
+
+**Example 1: Search and Edit**
+
+```
+User: "find clients in Sydney"
+AI: ✅ I've searched for "Sydney". Found 8 client(s)
+
+User: "edit ABC Corp"
+AI: ✅ Loaded client for editing: ABC Corp
+```
+
+**Example 2: Create New**
+
+```
+User: "I need to add a new client"
+AI: ✅ Opening form to create new client. Please fill in the required fields.
+(Form opens with empty fields)
+```
+
+## 👤 User Management Page
+
+### Search Users
+
+Search for users by user code:
+
+```
+User: "search for all users"
+AI: ✅ I've loaded all users. Found 12 user(s)
+
+User: "find user john.doe"
+AI: ✅ I've searched for user "john.doe". Found 1 user(s)
+```
+
+### Filter by Security Level
+
+Ask AI to show users by their access level:
+
+```
+User: "show me all admin users"
+AI: ✅ Found 3 Admin user(s)
+
+User: "find all editors"
+AI: ✅ Found 5 Editor user(s)
+
+User: "list viewer users"
+AI: ✅ Found 4 Viewer user(s)
+```
+
+**Security Levels:**
+
+- **Admin** (Level 2) - Full system access
+- **Editor** (Level 1) - Can manage registrations
+- **Viewer** (Level 0) - Read-only access
+
+### Edit User
+
+After searching, ask AI to edit a specific user:
+
+```
+User: "search for john.doe"
+AI: ✅ Found 1 user(s)
+
+User: "edit john.doe"
+AI: ✅ I've loaded the user for editing. Loaded user for editing: john.doe
+```
+
+### Create New User
+
+Ask AI to open the form for creating a new user:
+
+```
+User: "create new user"
+AI: ✅ Opening form to create new user. Please fill in the required fields.
+
+User: "add a user"
+AI: ✅ Opening form to create new user. Please fill in the required fields.
+```
+
+### User Management Examples
+
+**Example 1: Find Admins**
+
+```
+User: "show me all admin users"
+AI: ✅ Found 3 Admin user(s)
+(Table shows only admin users)
+```
+
+**Example 2: Edit User**
+
+```
+User: "find john.doe"
+AI: ✅ Found 1 user(s)
+
+User: "edit john.doe"
+AI: ✅ Loaded user for editing: john.doe
+(Form opens with user details)
+```
+
+**Example 3: Create User**
+
+```
+User: "I need to add a new user"
+AI: ✅ Opening form to create new user. Please fill in the required fields.
+(Form opens with empty fields)
+```
+
+## 🚀 Future Enhancements
+
+Additional features planned for future releases:
+
+### All Pages
+
+- Voice command support
+- Batch operations (e.g., "update all expired registrations")
+- Confirmation dialogs for destructive actions
+- Multi-step workflows
+- Action history and undo functionality
+
+### Dashboard (Coming Soon)
+
+- Generate custom reports
+- View real-time analytics
+- Export data in various formats
+- Schedule automated reports
 
 ## 📊 Example Conversation
 
@@ -233,11 +391,43 @@ AI: 🤖 You're welcome! Is there anything else I can help you with?
 ## 🎯 Best Practices
 
 1. **Search before editing:** Always search first to see available records
-2. **Be specific:** Use exact company names when editing
+2. **Be specific:** Use exact names/codes when editing
 3. **Load before download:** Make sure a registration is loaded before downloading PDF
 4. **Natural language:** Don't overthink it - just ask naturally!
+5. **Page awareness:** The AI knows which page you're on and adapts its responses
 
-## 📝 Feedback
+## � All Available Commands by Page
+
+### Manage Registrations
+
+- "search for all registrations"
+- "find ABC Strata"
+- "search by ABN 12345678901"
+- "search by LIN 12345"
+- "Edit ABC Strata"
+- "download PDF"
+
+### Clients
+
+- "search for all clients"
+- "find ABC Corporation"
+- "search for clients in Sydney"
+- "Edit ABC Corp"
+- "create new client"
+- "add a client"
+
+### User Management
+
+- "search for all users"
+- "find user john.doe"
+- "show me all admin users"
+- "find all editors"
+- "list viewer users"
+- "edit john.doe"
+- "create new user"
+- "add a user"
+
+## �📝 Feedback
 
 The AI is constantly learning! If you find a query that should work but doesn't, let us know and we'll improve it.
 
@@ -248,3 +438,4 @@ The AI is constantly learning! If you find a query that should work but doesn't,
 - "What can you do?"
 - "Help me search registrations"
 - "How do I edit a record?"
+- "Show me what actions are available"
