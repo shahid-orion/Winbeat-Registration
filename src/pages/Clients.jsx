@@ -1,15 +1,22 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { http } from '../lib/api';
 import validateABN, {
 	createNumericInputHandler,
 	validateEmail,
+	smoothScrollToElement,
 } from '../lib/utils';
-import { FaEdit, FaTrashAlt, FaUserPlus, FaSearch } from 'react-icons/fa';
+import {
+	FaEdit,
+	FaTrashAlt,
+	FaUserPlus,
+	FaSearch,
+	FaEye,
+} from 'react-icons/fa';
 import DataTable from '@/components/DataTable';
 import pageActions from '@/lib/pageActions';
 
-function FormFields({ form, setForm }) {
+function FormFields({ form, setForm, isViewMode = false }) {
 	const handleNumericInput = useCallback(
 		createNumericInputHandler(setForm),
 		[]
@@ -65,6 +72,7 @@ function FormFields({ form, setForm }) {
 							numericFields.includes(key) ? handleNumericInput : handleTextInput
 						}
 						placeholder={label === 'ABN' ? '11 digits' : ''}
+						readOnly={isViewMode}
 					/>
 				</div>
 			))}
@@ -79,8 +87,20 @@ export default function Clients() {
 	const [items, setItems] = useState([]);
 	const [form, setForm] = useState({});
 	const [selectedId, setSelectedId] = useState(null);
+	const [isViewMode, setIsViewMode] = useState(false); // New: track view-only mode
 	const [okMsg, setOkMsg] = useState('');
 	const [errMsg, setErrMsg] = useState('');
+
+	// Ref for scrolling to form section
+	const formCardRef = useRef(null);
+	const [scrollTrigger, setScrollTrigger] = useState(0);
+
+	// Auto-scroll to form section when a record is loaded
+	useEffect(() => {
+		if (selectedId && formCardRef.current && scrollTrigger > 0) {
+			smoothScrollToElement(formCardRef.current, 1000, 80);
+		}
+	}, [scrollTrigger]);
 
 	// Handle AI navigation with search term
 	useEffect(() => {
@@ -245,16 +265,28 @@ export default function Clients() {
 				label: 'Actions',
 				className: 'text-center',
 				render: (_, row) => (
-					<button
-						className="px-4 py-2 rounded-lg bg-gradient-to-r from-brand-light to-brand-aqua text-white font-medium hover:shadow-lg transition-all duration-200 hover:scale-[1.05]"
-						onClick={(e) => {
-							e.stopPropagation(); // Prevent row click
-							pick(row.clientID);
-						}}
-					>
-						<FaEdit className="inline mr-1" />
-						Edit
-					</button>
+					<div className="flex gap-2 justify-center">
+						<button
+							className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium hover:shadow-lg transition-all duration-200 hover:scale-[1.05]"
+							onClick={(e) => {
+								e.stopPropagation();
+								pickView(row.clientID);
+							}}
+						>
+							<FaEye className="inline mr-1" />
+							View
+						</button>
+						<button
+							className="px-4 py-2 rounded-lg bg-gradient-to-r from-brand-light to-brand-aqua text-white font-medium hover:shadow-lg transition-all duration-200 hover:scale-[1.05]"
+							onClick={(e) => {
+								e.stopPropagation();
+								pick(row.clientID);
+							}}
+						>
+							<FaEdit className="inline mr-1" />
+							Edit
+						</button>
+					</div>
 				),
 			},
 		],
@@ -312,8 +344,26 @@ export default function Clients() {
 			setSelectedId(c.clientID);
 			setForm(c);
 			setTab('browse');
+			setIsViewMode(false); // Edit mode
 			setOkMsg('');
 			setErrMsg('');
+			setScrollTrigger((prev) => prev + 1); // Trigger scroll
+		} catch (e) {
+			setErrMsg(e?.message || 'Failed to load client');
+			setTimeout(() => setErrMsg(''), 4000);
+		}
+	}
+
+	async function pickView(id) {
+		try {
+			const c = await http(`/api/clients/${id}`);
+			setSelectedId(c.clientID);
+			setForm(c);
+			setTab('browse');
+			setIsViewMode(true); // View mode
+			setOkMsg('');
+			setErrMsg('');
+			setScrollTrigger((prev) => prev + 1); // Trigger scroll
 		} catch (e) {
 			setErrMsg(e?.message || 'Failed to load client');
 			setTimeout(() => setErrMsg(''), 4000);
@@ -476,56 +526,99 @@ export default function Clients() {
 								data={items}
 								columns={tableColumns}
 								initialPageSize={5}
-								onRowClick={(row) => pick(row.clientID)}
 								emptyMessage="No clients found. Try adjusting your search criteria or create a new client."
 								pageSizeOptions={[5, 10, 25, 50]}
 							/>
 						</div>
 
 						{/* Edit Form Section */}
-						{/* flash messages */}
-						{(okMsg || errMsg) && (
-							<div
-								className={`p-4 rounded-xl border-2 font-semibold text-center ${
-									okMsg
-										? 'bg-green-50 border-green-200 text-green-700'
-										: 'bg-red-50 border-red-200 text-red-700'
-								}`}
-							>
-								{okMsg || errMsg}
-							</div>
-						)}
 						{selectedId && (
-							<section className="bg-white rounded-xl shadow-lg border border-brand-silver p-6 border-l-4 border-l-brand-aqua">
-								<h3 className="font-bold text-xl text-brand-dark mb-6 flex items-center gap-3">
-									<FaEdit className="text-brand-blue" />
-									Edit Client: {form.name}
-								</h3>
-								<FormFields form={form} setForm={setForm} />
-								<div className="flex gap-3 mt-6">
-									<button
-										className="px-6 py-3 rounded-lg bg-blue-gradient text-white font-semibold hover:shadow-lg transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
-										onClick={update}
-										disabled={!selectedId}
-									>
-										<FaEdit className="inline mr-2" />
-										Update Client
-									</button>
-									<button
-										className="px-6 py-3 rounded-lg bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold hover:shadow-lg transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
-										onClick={del}
-										disabled={!selectedId}
-									>
-										<FaTrashAlt className="inline mr-2" /> Delete
-									</button>
-									<button
-										className="px-6 py-3 rounded-lg bg-white border-2 border-brand-silver text-brand-dark font-semibold hover:bg-brand-ice hover:border-brand-light transition-all duration-200"
-										onClick={resetForm}
-									>
-										Cancel
-									</button>
+							<>
+								{/* Toolbar */}
+								<div
+									className="bg-white rounded-xl shadow-lg border border-brand-silver p-6 border-l-4 border-l-brand-blue"
+									ref={formCardRef}
+								>
+									<div className="flex items-center gap-4 flex-wrap">
+										<div className="px-4 py-2 rounded-full bg-brand-ice border border-brand-light text-brand-blue text-sm font-semibold">
+											Mode:{' '}
+											{isViewMode ? (
+												<b className="text-blue-600">👁️ View Only</b>
+											) : (
+												<b className="text-green-600">✏️ Edit Mode</b>
+											)}
+										</div>
+										<div className="px-4 py-2 rounded-full bg-brand-ice border border-brand-light text-brand-blue text-sm font-semibold">
+											Client: <b>{form.name || form.code}</b>
+										</div>
+										{isViewMode && (
+											<button
+												className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold hover:shadow-lg transition-all duration-200 hover:scale-[1.02]"
+												onClick={() => pick(selectedId)}
+											>
+												✏️ Switch to Edit Mode
+											</button>
+										)}
+										{(okMsg || errMsg) && (
+											<div
+												className={`flex-grow px-4 py-3 rounded-lg text-center font-semibold ${
+													okMsg
+														? 'bg-green-50 border border-green-200 text-green-700'
+														: 'bg-red-50 border border-red-200 text-red-700'
+												}`}
+											>
+												{okMsg || errMsg}
+											</div>
+										)}
+									</div>
 								</div>
-							</section>
+
+								<section className="bg-white rounded-xl shadow-lg border border-brand-silver p-6 border-l-4 border-l-brand-aqua">
+									<h3 className="font-bold text-xl text-brand-dark mb-6 flex items-center gap-3">
+										{isViewMode ? (
+											<>
+												<FaEye className="text-brand-blue" />
+												View Client: {form.name}
+											</>
+										) : (
+											<>
+												<FaEdit className="text-brand-blue" />
+												Edit Client: {form.name}
+											</>
+										)}
+									</h3>
+									<FormFields
+										form={form}
+										setForm={setForm}
+										isViewMode={isViewMode}
+									/>
+									{!isViewMode && (
+										<div className="flex gap-3 mt-6">
+											<button
+												className="px-6 py-3 rounded-lg bg-blue-gradient text-white font-semibold hover:shadow-lg transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+												onClick={update}
+												disabled={!selectedId}
+											>
+												<FaEdit className="inline mr-2" />
+												Update Client
+											</button>
+											<button
+												className="px-6 py-3 rounded-lg bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold hover:shadow-lg transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+												onClick={del}
+												disabled={!selectedId}
+											>
+												<FaTrashAlt className="inline mr-2" /> Delete
+											</button>
+											<button
+												className="px-6 py-3 rounded-lg bg-white border-2 border-brand-silver text-brand-dark font-semibold hover:bg-brand-ice hover:border-brand-light transition-all duration-200"
+												onClick={resetForm}
+											>
+												Cancel
+											</button>
+										</div>
+									)}
+								</section>
+							</>
 						)}
 					</>
 				) : (

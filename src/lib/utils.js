@@ -52,3 +52,49 @@ export function validateEmail(email) {
 	const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 	return emailRegex.test(email.trim());
 }
+
+/**
+ * Smooth scroll to a target position with custom easing
+ * @param {number} targetPosition - The Y position to scroll to
+ * @param {number} duration - Duration of the animation in milliseconds (default: 1000)
+ * @param {number} offset - Additional offset from the target position (default: 80)
+ */
+export function smoothScrollTo(targetPosition, duration = 1000, offset = 80) {
+	const startPosition = window.pageYOffset;
+	const distance = targetPosition - startPosition - offset;
+	let startTime = null;
+
+	const easeInOutCubic = (t) => {
+		return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+	};
+
+	const animation = (currentTime) => {
+		if (startTime === null) startTime = currentTime;
+		const timeElapsed = currentTime - startTime;
+		const progress = Math.min(timeElapsed / duration, 1);
+		const ease = easeInOutCubic(progress);
+
+		window.scrollTo(0, startPosition + distance * ease);
+
+		if (timeElapsed < duration) {
+			requestAnimationFrame(animation);
+		}
+	};
+
+	requestAnimationFrame(animation);
+}
+
+/**
+ * Smooth scroll to an element with custom easing
+ * @param {HTMLElement} element - The element to scroll to
+ * @param {number} duration - Duration of the animation in milliseconds (default: 1000)
+ * @param {number} offset - Additional offset from the target position (default: 80)
+ */
+export function smoothScrollToElement(element, duration = 1000, offset = 80) {
+	if (!element) return;
+
+	const elementPosition = element.getBoundingClientRect().top;
+	const targetPosition = elementPosition + window.pageYOffset;
+
+	smoothScrollTo(targetPosition, duration, offset);
+}

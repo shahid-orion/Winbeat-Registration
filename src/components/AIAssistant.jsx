@@ -15,7 +15,7 @@ export default function AIAssistant() {
 			id: 1,
 			type: 'assistant',
 			content:
-				"Hi! I'm your WinBeat AI Assistant powered by Gemini 2.0 Flash. I can help you analyze data, navigate pages, and answer questions about registrations, clients, and users. What can I help you with today?",
+				"Hi! I'm your WinBeat AI Assistant powered by Google Gemini 2.0 Flash. I can help you analyze data, navigate pages, and answer questions about registrations, clients, and users. What can I help you with today?",
 			timestamp: new Date(),
 			source: 'system',
 		},

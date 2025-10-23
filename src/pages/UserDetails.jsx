@@ -1,12 +1,19 @@
-import { useState, useEffect, useMemo } from 'react';
-import { FaEdit, FaTrashAlt, FaUserPlus, FaSearch } from 'react-icons/fa';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import {
+	FaEdit,
+	FaTrashAlt,
+	FaUserPlus,
+	FaSearch,
+	FaEye,
+} from 'react-icons/fa';
 import { useAuth } from '@/auth/AuthContext';
 import api from '@/lib/api';
 import DataTable from '@/components/DataTable';
 import pageActions from '@/lib/pageActions';
+import { smoothScrollToElement } from '@/lib/utils';
 
 // FormFields component - defined outside to prevent re-creation on every render
-function FormFields({ form, setForm, selectedId }) {
+function FormFields({ form, setForm, selectedId, isViewMode = false }) {
 	return (
 		<div className="grid gap-4">
 			{/* User Code & Password */}
@@ -24,6 +31,7 @@ function FormFields({ form, setForm, selectedId }) {
 						placeholder="Enter user code"
 						autoComplete="off"
 						disabled={selectedId ? true : false}
+						readOnly={isViewMode}
 					/>
 				</label>
 				<label className="grid gap-2">
@@ -41,6 +49,7 @@ function FormFields({ form, setForm, selectedId }) {
 							selectedId ? 'Enter new password to change' : 'Enter password'
 						}
 						autoComplete="new-password"
+						readOnly={isViewMode}
 					/>
 				</label>
 			</div>
@@ -52,11 +61,12 @@ function FormFields({ form, setForm, selectedId }) {
 				</span>
 				<div className="relative">
 					<select
-						className="w-full px-4 py-3 rounded-lg border-2 border-brand-silver focus:outline-none focus:ring-2 focus:ring-brand-light focus:border-transparent transition appearance-none bg-white"
+						className="w-full px-4 py-3 rounded-lg border-2 border-brand-silver focus:outline-none focus:ring-2 focus:ring-brand-light focus:border-transparent transition appearance-none bg-white disabled:opacity-60 disabled:cursor-not-allowed"
 						value={form.security}
 						onChange={(e) =>
 							setForm((f) => ({ ...f, security: e.target.value }))
 						}
+						disabled={isViewMode}
 					>
 						<option value={0}>👀 Viewer - Read only access</option>
 						<option value={1}>✏️ Editor - Can manage registrations</option>
@@ -80,7 +90,7 @@ function FormFields({ form, setForm, selectedId }) {
 					<span className="text-sm font-semibold text-brand-dark">Branch</span>
 					<div className="relative">
 						<select
-							className="w-full px-4 py-3 rounded-lg border-2 border-brand-silver focus:outline-none focus:ring-2 focus:ring-brand-light focus:border-transparent transition appearance-none bg-white"
+							className="w-full px-4 py-3 rounded-lg border-2 border-brand-silver focus:outline-none focus:ring-2 focus:ring-brand-light focus:border-transparent transition appearance-none bg-white disabled:opacity-60 disabled:cursor-not-allowed"
 							value={form.branchID}
 							onChange={(e) =>
 								setForm((f) => ({
@@ -88,6 +98,7 @@ function FormFields({ form, setForm, selectedId }) {
 									branchID: Number(e.target.value),
 								}))
 							}
+							disabled={isViewMode}
 						>
 							<option value="">-- Select Branch --</option>
 							<option value={1}>🏢 Sydney</option>
@@ -113,6 +124,7 @@ function FormFields({ form, setForm, selectedId }) {
 							setForm((f) => ({ ...f, country: e.target.value }))
 						}
 						placeholder="e.g., AUS"
+						readOnly={isViewMode}
 					/>
 				</label>
 			</div>
@@ -134,10 +146,16 @@ function FormFields({ form, setForm, selectedId }) {
 					Password Options
 				</h3>
 				<div className="grid gap-4 md:grid-cols-3">
-					<label className="flex items-center gap-3 p-3 rounded-lg bg-white border border-brand-silver hover:border-brand-light transition cursor-pointer">
+					<label
+						className={`flex items-center gap-3 p-3 rounded-lg bg-white border border-brand-silver transition ${
+							!isViewMode
+								? 'hover:border-brand-light cursor-pointer'
+								: 'opacity-60 cursor-not-allowed'
+						}`}
+					>
 						<input
 							type="checkbox"
-							className="w-5 h-5 text-brand-blue border-2 border-brand-silver rounded focus:ring-2 focus:ring-brand-light transition"
+							className="w-5 h-5 text-brand-blue border-2 border-brand-silver rounded focus:ring-2 focus:ring-brand-light transition disabled:opacity-50 disabled:cursor-not-allowed"
 							checked={form.passwordNeverExpires}
 							onChange={(e) =>
 								setForm((f) => ({
@@ -145,15 +163,22 @@ function FormFields({ form, setForm, selectedId }) {
 									passwordNeverExpires: e.target.checked,
 								}))
 							}
+							disabled={isViewMode}
 						/>
 						<span className="text-sm font-medium text-brand-dark">
 							Password never expires
 						</span>
 					</label>
-					<label className="flex items-center gap-3 p-3 rounded-lg bg-white border border-brand-silver hover:border-brand-light transition cursor-pointer">
+					<label
+						className={`flex items-center gap-3 p-3 rounded-lg bg-white border border-brand-silver transition ${
+							!isViewMode
+								? 'hover:border-brand-light cursor-pointer'
+								: 'opacity-60 cursor-not-allowed'
+						}`}
+					>
 						<input
 							type="checkbox"
-							className="w-5 h-5 text-brand-blue border-2 border-brand-silver rounded focus:ring-2 focus:ring-brand-light transition"
+							className="w-5 h-5 text-brand-blue border-2 border-brand-silver rounded focus:ring-2 focus:ring-brand-light transition disabled:opacity-50 disabled:cursor-not-allowed"
 							checked={form.canChangePassword}
 							onChange={(e) =>
 								setForm((f) => ({
@@ -161,15 +186,22 @@ function FormFields({ form, setForm, selectedId }) {
 									canChangePassword: e.target.checked,
 								}))
 							}
+							disabled={isViewMode}
 						/>
 						<span className="text-sm font-medium text-brand-dark">
 							Can change password
 						</span>
 					</label>
-					<label className="flex items-center gap-3 p-3 rounded-lg bg-white border border-brand-silver hover:border-brand-light transition cursor-pointer">
+					<label
+						className={`flex items-center gap-3 p-3 rounded-lg bg-white border border-brand-silver transition ${
+							!isViewMode
+								? 'hover:border-brand-light cursor-pointer'
+								: 'opacity-60 cursor-not-allowed'
+						}`}
+					>
 						<input
 							type="checkbox"
-							className="w-5 h-5 text-brand-blue border-2 border-brand-silver rounded focus:ring-2 focus:ring-brand-light transition"
+							className="w-5 h-5 text-brand-blue border-2 border-brand-silver rounded focus:ring-2 focus:ring-brand-light transition disabled:opacity-50 disabled:cursor-not-allowed"
 							checked={form.changePasswordNextLogon}
 							onChange={(e) =>
 								setForm((f) => ({
@@ -177,6 +209,7 @@ function FormFields({ form, setForm, selectedId }) {
 									changePasswordNextLogon: e.target.checked,
 								}))
 							}
+							disabled={isViewMode}
 						/>
 						<span className="text-sm font-medium text-brand-dark">
 							Change password next logon
@@ -214,6 +247,18 @@ export default function UserDetails() {
 	const [total, setTotal] = useState(0);
 
 	const [selectedId, setSelectedId] = useState(null);
+	const [isViewMode, setIsViewMode] = useState(false); // New: track view-only mode
+
+	// Ref for scrolling to form section
+	const formCardRef = useRef(null);
+	const [scrollTrigger, setScrollTrigger] = useState(0);
+
+	// Auto-scroll to form section when a record is loaded
+	useEffect(() => {
+		if (selectedId && formCardRef.current && scrollTrigger > 0) {
+			smoothScrollToElement(formCardRef.current, 1000, 80);
+		}
+	}, [scrollTrigger]);
 	const [isLoadingUser, setIsLoadingUser] = useState(false);
 	const [form, setForm] = useState({
 		userCode: '',
@@ -428,16 +473,28 @@ export default function UserDetails() {
 				label: 'Actions',
 				className: 'text-center',
 				render: (_, row) => (
-					<button
-						className="px-4 py-2 rounded-lg bg-brand-light text-white hover:bg-brand-aqua transition text-sm font-semibold"
-						onClick={(e) => {
-							e.stopPropagation(); // Prevent row click
-							pick(row.userCode);
-						}}
-					>
-						<FaEdit className="inline mr-1" />
-						Edit
-					</button>
+					<div className="flex gap-2 justify-center">
+						<button
+							className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium hover:shadow-lg transition-all duration-200 hover:scale-[1.05]"
+							onClick={(e) => {
+								e.stopPropagation();
+								pickView(row.userCode);
+							}}
+						>
+							<FaEye className="inline mr-1" />
+							View
+						</button>
+						<button
+							className="px-4 py-2 rounded-lg bg-gradient-to-r from-brand-light to-brand-aqua text-white font-medium hover:shadow-lg transition-all duration-200 hover:scale-[1.05]"
+							onClick={(e) => {
+								e.stopPropagation();
+								pick(row.userCode);
+							}}
+						>
+							<FaEdit className="inline mr-1" />
+							Edit
+						</button>
+					</div>
 				),
 			},
 		],
@@ -508,8 +565,48 @@ export default function UserDetails() {
 			});
 			setSelectedId(u.userID);
 			setTab('browse');
+			setIsViewMode(false); // Edit mode
 			setOkMsg('');
 			setErrMsg('');
+			setScrollTrigger((prev) => prev + 1); // Trigger scroll
+		} catch (e) {
+			setSelectedId(null);
+			setErrMsg(e?.response?.data || e?.message || 'Failed to load user');
+			setTimeout(() => setErrMsg(''), 4000);
+		} finally {
+			setIsLoadingUser(false);
+		}
+	}
+
+	async function pickView(userCode) {
+		setIsLoadingUser(true);
+		try {
+			// Use GetAll endpoint with userCode query parameter
+			const res = await api.get('/users', { params: { userCode } });
+			const users = res.data;
+
+			// Since we're searching by exact userCode, should get one result
+			if (!users || users.length === 0) {
+				throw new Error('User not found');
+			}
+
+			const u = users[0];
+			setForm({
+				userCode: u.userCode || '',
+				password: '', // Don't populate password for security
+				security: u.security ?? 1,
+				branchID: u.branchID || '',
+				country: u.country || '',
+				passwordNeverExpires: !!u.passwordNeverExpires,
+				canChangePassword: !!u.canChangePassword,
+				changePasswordNextLogon: !!u.changePasswordNextLogon,
+			});
+			setSelectedId(u.userID);
+			setTab('browse');
+			setIsViewMode(true); // View mode
+			setOkMsg('');
+			setErrMsg('');
+			setScrollTrigger((prev) => prev + 1); // Trigger scroll
 		} catch (e) {
 			setSelectedId(null);
 			setErrMsg(e?.response?.data || e?.message || 'Failed to load user');
@@ -703,7 +800,6 @@ export default function UserDetails() {
 								data={items}
 								columns={tableColumns}
 								initialPageSize={5}
-								onRowClick={(row) => pick(row.userCode)}
 								emptyMessage="No users found. Try searching or click Search to load all users."
 								pageSizeOptions={[5, 10, 25, 50]}
 							/>
@@ -721,45 +817,103 @@ export default function UserDetails() {
 							</section>
 						)}
 
-						{/* Edit Form - Only shows when user data is loaded */}
+						{/* Toolbar - Shows mode indicator and messages */}
+						{selectedId && !isLoadingUser && (
+							<div
+								ref={formCardRef}
+								className="border-l-4 border-l-brand-blue bg-gradient-to-r from-brand-ice/50 to-white rounded-xl shadow-md p-4 mb-4"
+							>
+								<div className="flex items-center gap-4 flex-wrap">
+									<div className="px-4 py-2 rounded-full bg-gradient-to-r from-brand-blue/10 to-brand-blue/5 border border-brand-blue/20">
+										Mode:{' '}
+										{isViewMode ? (
+											<b className="text-blue-600">👁️ View Only</b>
+										) : (
+											<b className="text-aqua-600">✏️ Edit Mode</b>
+										)}
+									</div>
+									<div className="px-4 py-2 rounded-full bg-white/70 border border-brand-silver/30">
+										<span className="text-brand-secondary text-sm">
+											User: <b className="text-brand-dark">{form.userCode}</b>
+										</span>
+									</div>
+									{isViewMode && (
+										<button
+											className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold hover:shadow-lg transition-all duration-200 hover:scale-[1.02]"
+											onClick={() => pick(form.userCode)}
+										>
+											✏️ Switch to Edit Mode
+										</button>
+									)}
+									{(okMsg || errMsg) && (
+										<div className="ml-auto flex items-center gap-2">
+											{okMsg && (
+												<span className="text-green-600 text-sm font-medium">
+													✅ {okMsg}
+												</span>
+											)}
+											{errMsg && (
+												<span className="text-red-600 text-sm font-medium">
+													❌ {errMsg}
+												</span>
+											)}
+										</div>
+									)}
+								</div>
+							</div>
+						)}
+
+						{/* Edit/View Form - Only shows when user data is loaded */}
 						{selectedId && !isLoadingUser && (
 							<section className="border-l-4 border-l-brand-blue bg-white rounded-xl shadow-md p-6">
 								<h3 className="text-lg font-semibold text-brand-dark border-b border-brand-silver/50 pb-2 mb-3 flex items-center gap-2">
-									<FaEdit className="text-brand-blue" />
-									Edit User: {form.userCode}
+									{isViewMode ? (
+										<>
+											<FaEye className="text-blue-600" />
+											View User: {form.userCode}
+										</>
+									) : (
+										<>
+											<FaEdit className="text-brand-blue" />
+											Edit User: {form.userCode}
+										</>
+									)}
 								</h3>
 								<FormFields
 									form={form}
 									setForm={setForm}
 									selectedId={selectedId}
+									isViewMode={isViewMode}
 								/>
-								<div className="flex gap-3 mt-6">
-									<button
-										className="px-6 py-3 rounded-lg bg-blue-gradient text-white font-semibold hover:shadow-lg transition-all"
-										onClick={update}
-									>
-										<FaEdit className="inline mr-2" />
-										Update
-									</button>
-									<button
-										className="px-6 py-3 rounded-lg bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold hover:shadow-lg transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
-										onClick={del}
-										disabled={!selectedId}
-									>
-										<FaTrashAlt className="inline mr-2" /> Delete
-									</button>
-									<button
-										className="px-6 py-3 rounded-lg border border-brand-silver bg-white hover:bg-brand-ice transition-all"
-										onClick={resetForm}
-									>
-										Cancel
-									</button>
-									{errMsg && (
-										<span className="text-red-600 text-sm ml-3 self-center">
-											{errMsg}
-										</span>
-									)}
-								</div>
+								{!isViewMode && (
+									<div className="flex gap-3 mt-6">
+										<button
+											className="px-6 py-3 rounded-lg bg-blue-gradient text-white font-semibold hover:shadow-lg transition-all"
+											onClick={update}
+										>
+											<FaEdit className="inline mr-2" />
+											Update
+										</button>
+										<button
+											className="px-6 py-3 rounded-lg bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold hover:shadow-lg transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+											onClick={del}
+											disabled={!selectedId}
+										>
+											<FaTrashAlt className="inline mr-2" /> Delete
+										</button>
+										<button
+											className="px-6 py-3 rounded-lg border border-brand-silver bg-white hover:bg-brand-ice transition-all"
+											onClick={resetForm}
+										>
+											Cancel
+										</button>
+										{errMsg && (
+											<span className="text-red-600 text-sm ml-3 self-center">
+												{errMsg}
+											</span>
+										)}
+									</div>
+								)}
 							</section>
 						)}
 					</>

@@ -1,20 +1,29 @@
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import React, {
+	useMemo,
+	useState,
+	useCallback,
+	useEffect,
+	useRef,
+} from 'react';
 import { useLocation } from 'react-router-dom';
 import { http } from '@/lib/api';
 import DataTable from '@/components/DataTable';
-import validateABN from '../lib/utils';
+import validateABN, { smoothScrollToElement } from '../lib/utils';
 import pageActions from '../lib/pageActions';
 
 // ---------- UI atoms (memoized) ----------
-const Card = React.memo(function Card({ children, className = '' }) {
-	return (
-		<div
-			className={`bg-white rounded-xl shadow-lg border border-brand-silver p-6 ${className}`}
-		>
-			{children}
-		</div>
-	);
-});
+const Card = React.memo(
+	React.forwardRef(function Card({ children, className = '' }, ref) {
+		return (
+			<div
+				ref={ref}
+				className={`bg-white rounded-xl shadow-lg border border-brand-silver p-6 ${className}`}
+			>
+				{children}
+			</div>
+		);
+	})
+);
 
 const SectionTitle = React.memo(function SectionTitle({ children }) {
 	return (
@@ -54,14 +63,27 @@ const Input = React.memo(function Input({
 	);
 });
 
-const Flag = React.memo(function Flag({ label, name, checked, onChange }) {
+const Flag = React.memo(function Flag({
+	label,
+	name,
+	checked,
+	onChange,
+	disabled = false,
+}) {
 	return (
-		<label className="flex items-center gap-3 p-3 rounded-lg bg-white border border-brand-silver hover:border-brand-light hover:bg-brand-ice transition-all duration-200 cursor-pointer">
+		<label
+			className={`flex items-center gap-3 p-3 rounded-lg bg-white border border-brand-silver transition-all duration-200 ${
+				!disabled
+					? 'hover:border-brand-light hover:bg-brand-ice cursor-pointer'
+					: 'opacity-60 cursor-not-allowed'
+			}`}
+		>
 			<input
 				type="checkbox"
-				className="w-5 h-5 text-brand-blue border-2 border-brand-silver rounded-lg focus:ring-2 focus:ring-brand-light focus:ring-offset-2 transition hover:border-brand-blue"
+				className="w-5 h-5 text-brand-blue border-2 border-brand-silver rounded-lg focus:ring-2 focus:ring-brand-light focus:ring-offset-2 transition hover:border-brand-blue disabled:opacity-50 disabled:cursor-not-allowed"
 				checked={!!checked}
 				onChange={(e) => onChange(name, e.target.checked)}
+				disabled={disabled}
 			/>
 			<span className="text-sm font-medium text-brand-dark">{label}</span>
 		</label>
@@ -74,15 +96,23 @@ const BankRadio = React.memo(function BankRadio({
 	value,
 	current,
 	onChange,
+	disabled = false,
 }) {
 	return (
-		<label className="flex items-center gap-3 p-3 rounded-lg bg-white border border-brand-silver hover:border-brand-light hover:bg-brand-ice transition-all duration-200 cursor-pointer">
+		<label
+			className={`flex items-center gap-3 p-3 rounded-lg bg-white border border-brand-silver transition-all duration-200 ${
+				!disabled
+					? 'hover:border-brand-light hover:bg-brand-ice cursor-pointer'
+					: 'opacity-60 cursor-not-allowed'
+			}`}
+		>
 			<input
 				type="radio"
 				name={name}
-				className="w-5 h-5 text-brand-blue border-2 border-brand-silver focus:ring-2 focus:ring-brand-light focus:ring-offset-2 transition"
+				className="w-5 h-5 text-brand-blue border-2 border-brand-silver focus:ring-2 focus:ring-brand-light focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
 				checked={current === value}
 				onChange={() => onChange(value)}
+				disabled={disabled}
 			/>
 			<span className="text-sm font-medium text-brand-dark">{label}</span>
 		</label>
@@ -167,6 +197,7 @@ export default function Manage() {
 	// Form state - declared early so it can be used in useEffect dependencies
 	const [form, setForm] = useState(blankForm());
 	const [isEdit, setIsEdit] = useState(false);
+	const [isViewMode, setIsViewMode] = useState(false); // New: track view-only mode
 	const [formDirty, setFormDirty] = useState(false);
 	const [msg, setMsg] = useState('');
 	const [ok, setOk] = useState(false);
@@ -175,6 +206,17 @@ export default function Manage() {
 	const [selectedBackgroundFunders, setSelectedBackgroundFunders] = useState(
 		[]
 	);
+
+	// Ref for Company Information section to scroll to it when editing
+	const statusCardRef = useRef(null);
+	const [scrollTrigger, setScrollTrigger] = useState(0); // New: force scroll trigger
+
+	// Auto-scroll to Company Information section when a record is loaded for editing
+	useEffect(() => {
+		if (isEdit && statusCardRef.current && scrollTrigger > 0) {
+			smoothScrollToElement(statusCardRef.current, 1000, 80);
+		}
+	}, [scrollTrigger]); // Watch scrollTrigger to fire on every view/edit click
 
 	// Handle AI navigation with search term
 	useEffect(() => {
@@ -382,15 +424,26 @@ export default function Manage() {
 				label: 'Actions',
 				className: 'text-center',
 				render: (_, row) => (
-					<button
-						className="px-4 py-2 rounded-lg bg-gradient-to-r from-brand-light to-brand-aqua text-white font-medium hover:shadow-lg transition-all duration-200 hover:scale-[1.05]"
-						onClick={(e) => {
-							e.stopPropagation(); // Prevent row click
-							editRow(row.ledgerID);
-						}}
-					>
-						Edit
-					</button>
+					<div className="flex gap-2 justify-center">
+						<button
+							className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium hover:shadow-lg transition-all duration-200 hover:scale-[1.05]"
+							onClick={(e) => {
+								e.stopPropagation(); // Prevent row click
+								viewRow(row.ledgerID);
+							}}
+						>
+							👁️ View
+						</button>
+						<button
+							className="px-4 py-2 rounded-lg bg-gradient-to-r from-brand-light to-brand-aqua text-white font-medium hover:shadow-lg transition-all duration-200 hover:scale-[1.05]"
+							onClick={(e) => {
+								e.stopPropagation(); // Prevent row click
+								editRow(row.ledgerID);
+							}}
+						>
+							✏️ Edit
+						</button>
+					</div>
 				),
 			},
 		],
@@ -439,11 +492,15 @@ export default function Manage() {
 		setSearchMsg('');
 	}
 
-	async function editRow(ledgerId) {
-		await loadByLedger(ledgerId);
+	async function viewRow(ledgerId) {
+		await loadByLedger(ledgerId, true); // Pass true for view mode
 	}
 
-	async function loadByLedger(id) {
+	async function editRow(ledgerId) {
+		await loadByLedger(ledgerId, false); // Pass false for edit mode
+	}
+
+	async function loadByLedger(id, viewMode = false) {
 		try {
 			setMsg('');
 			setOk(false);
@@ -525,9 +582,13 @@ export default function Manage() {
 			setSelectedBackgroundFunders(bf);
 
 			setIsEdit(true);
+			setIsViewMode(viewMode); // Set view mode state
 			setFormDirty(false);
-			setMsg(`Loaded LedgerID ${id}`);
+			setMsg(`${viewMode ? 'Viewing' : 'Loaded'} LedgerID ${id}`);
 			setOk(true);
+
+			// Trigger scroll every time (increment counter)
+			setScrollTrigger((prev) => prev + 1);
 
 			// Log form state after setting
 			console.log('Form state after loading:', {
@@ -722,7 +783,6 @@ export default function Manage() {
 								data={results}
 								columns={tableColumns}
 								initialPageSize={5}
-								onRowClick={(row) => editRow(row.ledgerID)}
 								emptyMessage="No results found. Try adjusting your search criteria."
 								pageSizeOptions={[5, 10, 25, 50]}
 							/>
@@ -732,8 +792,16 @@ export default function Manage() {
 
 				{/* Toolbar */}
 				{isEdit && (
-					<Card className="border-l-4 border-l-brand-blue">
+					<Card className="border-l-4 border-l-brand-blue" ref={statusCardRef}>
 						<div className="flex items-center gap-4 flex-wrap">
+							<div className="px-4 py-2 rounded-full bg-brand-ice border border-brand-light text-brand-blue text-sm font-semibold">
+								Mode:{' '}
+								{isViewMode ? (
+									<b className="text-blue-600">👁️ View Only</b>
+								) : (
+									<b className="text-green-600">✏️ Edit Mode</b>
+								)}
+							</div>
 							<div className="px-4 py-2 rounded-full bg-brand-ice border border-brand-light text-brand-blue text-sm font-semibold">
 								Status:{' '}
 								{form.ledgerID ? (
@@ -742,22 +810,32 @@ export default function Manage() {
 									<span>—</span>
 								)}
 							</div>
-							<>
+							{!isViewMode && (
+								<>
+									<button
+										className="px-6 py-3 rounded-lg bg-blue-gradient text-white font-semibold hover:shadow-lg transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+										disabled={!formDirty}
+										onClick={save}
+									>
+										💾 Save (Upsert)
+									</button>
+								</>
+							)}
+							<button
+								className="px-6 py-3 rounded-lg bg-gradient-to-r from-brand-light to-brand-aqua text-white font-semibold hover:shadow-lg transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+								disabled={!form.ledgerID}
+								onClick={downloadPdf}
+							>
+								📥 Download PDF
+							</button>
+							{isViewMode && (
 								<button
-									className="px-6 py-3 rounded-lg bg-blue-gradient text-white font-semibold hover:shadow-lg transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-									disabled={!formDirty}
-									onClick={save}
+									className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold hover:shadow-lg transition-all duration-200 hover:scale-[1.02]"
+									onClick={() => editRow(form.ledgerID)}
 								>
-									💾 Save (Upsert)
+									✏️ Switch to Edit Mode
 								</button>
-								<button
-									className="px-6 py-3 rounded-lg bg-gradient-to-r from-brand-light to-brand-aqua text-white font-semibold hover:shadow-lg transition-all duration-200 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-									disabled={!form.ledgerID}
-									onClick={downloadPdf}
-								>
-									📥 Download PDF
-								</button>
-							</>
+							)}
 							{msg && (
 								<div
 									className={`flex-grow px-4 py-3 rounded-lg text-center font-semibold ${
@@ -777,7 +855,10 @@ export default function Manage() {
 				{isEdit && (
 					<div className="space-y-6">
 						{/* Company / Identity */}
-						<Card className="border-l-4 border-l-brand-blue">
+						<Card
+							className="border-l-4 border-l-brand-blue"
+							// ref={companyInfoRef}
+						>
 							<SectionTitle>Company Information</SectionTitle>
 							<div className="grid gap-6 lg:grid-cols-3">
 								<Input
@@ -786,6 +867,7 @@ export default function Manage() {
 									value={form.companyName}
 									required
 									onChange={handleInput}
+									readOnly={isViewMode}
 								/>
 								<Input
 									label="Company ABN"
@@ -793,6 +875,7 @@ export default function Manage() {
 									value={form.companyABN}
 									required
 									onChange={handleInput}
+									readOnly={isViewMode}
 								/>
 								<Input
 									label="Country"
@@ -800,13 +883,14 @@ export default function Manage() {
 									value={form.country}
 									onChange={handleInput}
 									maxLength={3}
+									readOnly={isViewMode}
 								/>
 								<Input
 									label="LIN"
 									name="LIN"
 									value={form.LIN}
 									onChange={handleInput}
-									readOnly
+									readOnly={true}
 								/>
 								<Input
 									label="Expiry Date"
@@ -814,6 +898,7 @@ export default function Manage() {
 									value={form.expiryDate}
 									onChange={handleInput}
 									type="date"
+									readOnly={isViewMode}
 								/>
 							</div>
 
@@ -824,6 +909,7 @@ export default function Manage() {
 									value={form.licensedUsers}
 									onChange={handleInput}
 									type="number"
+									readOnly={isViewMode}
 								/>
 								<Input
 									label="WinbeatNow Users"
@@ -831,6 +917,7 @@ export default function Manage() {
 									value={form.winbeatnowUsers}
 									onChange={handleInput}
 									type="number"
+									readOnly={isViewMode}
 								/>
 								<Input
 									label="QlikSense Users"
@@ -838,6 +925,7 @@ export default function Manage() {
 									value={form.qlikSenseUsers}
 									onChange={handleInput}
 									type="number"
+									readOnly={isViewMode}
 								/>
 							</div>
 						</Card>
@@ -851,54 +939,63 @@ export default function Manage() {
 									name="coinsurance"
 									checked={form.coinsurance}
 									onChange={handleFlag}
+									disabled={isViewMode}
 								/>
 								<Flag
 									label="OrganiseIT"
 									name="organiseIT"
 									checked={form.organiseIT}
 									onChange={handleFlag}
+									disabled={isViewMode}
 								/>
 								<Flag
 									label="IBNA"
 									name="ibna"
 									checked={form.ibna}
 									onChange={handleFlag}
+									disabled={isViewMode}
 								/>
 								<Flag
 									label="Custom forms"
 									name="customForms"
 									checked={form.customForms}
 									onChange={handleFlag}
+									disabled={isViewMode}
 								/>
 								<Flag
 									label="Export"
 									name="export"
 									checked={form.export}
 									onChange={handleFlag}
+									disabled={isViewMode}
 								/>
 								<Flag
 									label="DMI"
 									name="dmi"
 									checked={form.dmi}
 									onChange={handleFlag}
+									disabled={isViewMode}
 								/>
 								<Flag
 									label="AM security"
 									name="amSecurity"
 									checked={form.amSecurity}
 									onChange={handleFlag}
+									disabled={isViewMode}
 								/>
 								<Flag
 									label="Steadfast"
 									name="steadfast"
 									checked={form.steadfast}
 									onChange={handleFlag}
+									disabled={isViewMode}
 								/>
 								<Flag
 									label="Diary"
 									name="diary"
 									checked={form.diary}
 									onChange={handleFlag}
+									disabled={isViewMode}
 								/>
 							</div>
 						</Card>
@@ -914,6 +1011,7 @@ export default function Manage() {
 										value={0}
 										current={form.bankType}
 										onChange={handleBankType}
+										disabled={isViewMode}
 									/>
 									<BankRadio
 										label="Automated banking"
@@ -921,6 +1019,7 @@ export default function Manage() {
 										value={1}
 										current={form.bankType}
 										onChange={handleBankType}
+										disabled={isViewMode}
 									/>
 									<BankRadio
 										label="MPP"
@@ -928,6 +1027,7 @@ export default function Manage() {
 										value={2}
 										current={form.bankType}
 										onChange={handleBankType}
+										disabled={isViewMode}
 									/>
 									<BankRadio
 										label="NAB Transact"
@@ -935,6 +1035,7 @@ export default function Manage() {
 										value={3}
 										current={form.bankType}
 										onChange={handleBankType}
+										disabled={isViewMode}
 									/>
 								</div>
 							</Card>
@@ -948,18 +1049,21 @@ export default function Manage() {
 										name="elink"
 										checked={form.elink}
 										onChange={handleFlag}
+										disabled={isViewMode}
 									/>
 									<Flag
 										label="Client"
 										name="elinkClient"
 										checked={form.elinkClient}
 										onChange={handleFlag}
+										disabled={isViewMode}
 									/>
 									<Flag
 										label="eXpress"
 										name="eLinkExpress"
 										checked={form.eLinkExpress}
 										onChange={handleFlag}
+										disabled={isViewMode}
 									/>
 								</div>
 							</Card>
@@ -975,48 +1079,56 @@ export default function Manage() {
 										name="sunrise"
 										checked={form.sunrise}
 										onChange={handleFlag}
+										disabled={isViewMode}
 									/>
 									<Flag
 										label="iClose - Accounting"
 										name="iCloseAccounting"
 										checked={form.iCloseAccounting}
 										onChange={handleFlag}
+										disabled={isViewMode}
 									/>
 									<Flag
 										label="iClose - Policies"
 										name="iClosePolicies"
 										checked={form.iClosePolicies}
 										onChange={handleFlag}
+										disabled={isViewMode}
 									/>
 									<Flag
 										label="iClose - Claims"
 										name="iCloseClaims"
 										checked={form.iCloseClaims}
 										onChange={handleFlag}
+										disabled={isViewMode}
 									/>
 									<Flag
 										label="Claimwrite"
 										name="claimWrite"
 										checked={form.claimWrite}
 										onChange={handleFlag}
+										disabled={isViewMode}
 									/>
 									<Flag
 										label="SmartOffice"
 										name="smartOffice"
 										checked={form.smartOffice}
 										onChange={handleFlag}
+										disabled={isViewMode}
 									/>
 									<Flag
 										label="Instalments"
 										name="instalments"
 										checked={form.instalments}
 										onChange={handleFlag}
+										disabled={isViewMode}
 									/>
 									<Flag
 										label="OPG"
 										name="opg"
 										checked={form.opg}
 										onChange={handleFlag}
+										disabled={isViewMode}
 									/>
 								</div>
 							</Card>
@@ -1030,12 +1142,14 @@ export default function Manage() {
 										name="qlikView"
 										checked={form.qlikView}
 										onChange={handleFlag}
+										disabled={isViewMode}
 									/>
 									<Flag
 										label="Qlik Sense"
 										name="qlikSense"
 										checked={form.qlikSense}
 										onChange={handleFlag}
+										disabled={isViewMode}
 									/>
 								</div>
 
@@ -1045,7 +1159,7 @@ export default function Manage() {
 											QlikSense Extraction
 										</label>
 										<select
-											className="w-full px-4 py-3 rounded-lg border-2 border-brand-silver focus:outline-none focus:ring-2 focus:ring-brand-light focus:border-transparent transition bg-white"
+											className="w-full px-4 py-3 rounded-lg border-2 border-brand-silver focus:outline-none focus:ring-2 focus:ring-brand-light focus:border-transparent transition bg-white disabled:opacity-60 disabled:cursor-not-allowed"
 											value={form.qlikSenseExtraction}
 											onChange={(e) => {
 												setForm((prev) => ({
@@ -1054,6 +1168,7 @@ export default function Manage() {
 												}));
 												markDirty();
 											}}
+											disabled={isViewMode}
 										>
 											<option value="0">Not applicable</option>
 											<option value="1">Daily</option>
@@ -1083,7 +1198,7 @@ export default function Manage() {
 											>
 												<input
 													type="checkbox"
-													className="w-5 h-5 text-brand-blue border-2 border-brand-silver rounded-lg focus:ring-2 focus:ring-brand-light focus:ring-offset-2 transition hover:border-brand-blue"
+													className="w-5 h-5 text-brand-blue border-2 border-brand-silver rounded-lg focus:ring-2 focus:ring-brand-light focus:ring-offset-2 transition hover:border-brand-blue disabled:opacity-50 disabled:cursor-not-allowed"
 													checked={selectedFunders.includes(o.id)}
 													onChange={(e) => {
 														setSelectedFunders((s) =>
@@ -1093,10 +1208,11 @@ export default function Manage() {
 														);
 														markDirty();
 													}}
+													disabled={isViewMode}
 												/>
 												<input
 													type="checkbox"
-													className="w-5 h-5 text-brand-aqua border-2 border-brand-silver rounded-lg focus:ring-2 focus:ring-brand-light focus:ring-offset-2 transition hover:border-brand-aqua"
+													className="w-5 h-5 text-brand-aqua border-2 border-brand-silver rounded-lg focus:ring-2 focus:ring-brand-light focus:ring-offset-2 transition hover:border-brand-aqua disabled:opacity-50 disabled:cursor-not-allowed"
 													checked={selectedBackgroundFunders.includes(o.id)}
 													onChange={(e) => {
 														setSelectedBackgroundFunders((s) =>
@@ -1106,6 +1222,7 @@ export default function Manage() {
 														);
 														markDirty();
 													}}
+													disabled={isViewMode}
 												/>
 												<span className="text-sm font-medium text-brand-dark">
 													{o.label}
